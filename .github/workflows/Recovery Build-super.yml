@@ -158,10 +158,14 @@ jobs:
         touch out/target/product/${{ github.event.inputs.DEVICE_NAME }}/system/bin/adbd
         chmod +x out/target/product/${{ github.event.inputs.DEVICE_NAME }}/system/bin/adbd
         
-        # Create dummy property_info_checker to satisfy sepolicy target checks
+        # Create dummy property_info_checker
         echo '#!/bin/sh' > out/host/linux-x86/bin/property_info_checker
         echo 'exit 0' >> out/host/linux-x86/bin/property_info_checker
         chmod +x out/host/linux-x86/bin/property_info_checker
+        
+        # Create missing init.zygote64_32.rc placeholder
+        mkdir -p system/core/rootdir
+        touch system/core/rootdir/init.zygote64_32.rc
         
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
