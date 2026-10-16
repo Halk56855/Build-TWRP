@@ -117,11 +117,20 @@ jobs:
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Fix Missing Vendor TWRP Config
+    - name: Fix Missing Vendor TWRP Config and Board Flags
       run: |
         mkdir -p vendor/twrp/config
         if [ ! -f vendor/twrp/config/common.mk ]; then
             touch vendor/twrp/config/common.mk
+        fi
+        
+        # Inject missing partition sizes and disable AVB flags for recovery compilation
+        BOARD_CONFIG="${{ github.event.inputs.DEVICE_PATH }}/BoardConfig.mk"
+        if [ -f "$BOARD_CONFIG" ]; then
+            echo "" >> "$BOARD_CONFIG"
+            echo "# Pterodon Build Fixes" >> "$BOARD_CONFIG"
+            echo "BOARD_AVB_ENABLE := false" >> "$BOARD_CONFIG"
+            echo "BOARD_SYSTEMIMAGE_PARTITION_SIZE := 1073741824" >> "$BOARD_CONFIG"
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
