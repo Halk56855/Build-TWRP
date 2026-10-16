@@ -133,13 +133,6 @@ jobs:
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Inject mkbootimg tool
-      run: |
-        mkdir -p out/host/linux-x86/bin
-        curl -sL https://raw.githubusercontent.com/omnirom/android_system_core/android-9.0/mkbootimg/mkbootimg -o out/host/linux-x86/bin/mkbootimg
-        chmod +x out/host/linux-x86/bin/mkbootimg
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
@@ -150,7 +143,12 @@ jobs:
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
-        make clean
+        
+        # Inject mkbootimg right before building the image target so it doesn't get wiped by clean/envsetup
+        mkdir -p out/host/linux-x86/bin
+        curl -sL https://raw.githubusercontent.com/omnirom/android_system_core/android-9.0/mkbootimg/mkbootimg -o out/host/linux-x86/bin/mkbootimg
+        chmod +x out/host/linux-x86/bin/mkbootimg
+        
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
