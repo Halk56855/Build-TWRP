@@ -98,9 +98,14 @@ jobs:
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
       id: pwd
           
-    - name: Repo Sync
+    - name: Repo Sync with Retry
       run: |
-        repo sync -j$(nproc --all) --force-sync
+        # استخدام عدد أقل من المعالجات وإضافة محاولة إعادة اتصال تلقائية لتجنب أخطاء 502/503
+        for i in {1..5}; do
+          repo sync -j4 --force-sync && break
+          echo "Repo sync failed. Retrying ($i/5)..."
+          sleep 10
+        done
       working-directory: workspace
       
     - name: Clone device tree
@@ -129,17 +134,15 @@ jobs:
     - name: Sync Device Dependencies
       run: |
         bash ${GITHUB_WORKSPACE}/scripts/convert.sh ${{ github.event.inputs.DEVICE_PATH }}/${{ steps.buildtree.outputs.value }}.dependencies || true
-        repo sync -j$(nproc --all) || true
+        repo sync -j4 || true
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
       continue-on-error: True
 
     - name: Fix FBE and Mount Issues in Device Tree
       run: |
-        # البحث عن ملفات الـ fstab وتعديل خيارات التشفير لمنع أخطاء الـ Invalid argument
         FSTAB_FILE=$(find ./${{ github.event.inputs.DEVICE_PATH }} -name "fstab*")
         if [ -f "$FSTAB_FILE" ]; then
           echo "Found fstab file: $FSTAB_FILE"
-          # تعديل إعدادات التشفير أو إزالة الخيارات المتعثرة لكي يتعرف الريكفري على القسم بدون فرمتة
           sed -i 's/fileencryption=/encryptable=/g' "$FSTAB_FILE" || true
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
