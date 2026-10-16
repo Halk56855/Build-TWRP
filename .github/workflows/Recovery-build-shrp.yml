@@ -1,4 +1,4 @@
-Name: SHRP Recovery Build without FBE
+name: SHRP Recovery Build without FBE
 
 on:
   workflow_dispatch:
