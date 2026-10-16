@@ -163,9 +163,10 @@ jobs:
         echo 'exit 0' >> out/host/linux-x86/bin/property_info_checker
         chmod +x out/host/linux-x86/bin/property_info_checker
         
-        # Create missing init.zygote64_32.rc placeholder
+        # Create missing init rc placeholders
         mkdir -p system/core/rootdir
         touch system/core/rootdir/init.zygote64_32.rc
+        touch system/core/rootdir/init.zygote32.rc
         
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
