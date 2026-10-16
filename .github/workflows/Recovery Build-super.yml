@@ -168,6 +168,7 @@ jobs:
         touch system/core/rootdir/init.zygote64_32.rc
         touch system/core/rootdir/init.zygote32.rc
         touch system/core/rootdir/init.usb.rc
+        touch system/core/rootdir/init.usb.configfs.rc
         
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
