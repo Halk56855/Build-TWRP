@@ -144,7 +144,7 @@ jobs:
         export ALLOW_MISSING_DEPENDENCIES=true
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
         make clean
-        make mkbootimg -j$(nproc --all) || true
+        make bootimage -j$(nproc --all) || true
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
