@@ -117,6 +117,14 @@ jobs:
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
+    - name: Fix Missing Vendor TWRP Config
+      run: |
+        mkdir -p vendor/twrp/config
+        if [ ! -f vendor/twrp/config/common.mk ]; then
+            touch vendor/twrp/config/common.mk
+        fi
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
