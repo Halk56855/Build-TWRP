@@ -144,13 +144,15 @@ jobs:
         export ALLOW_MISSING_DEPENDENCIES=true
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
         
-        # Inject both mkbootimg and mkbootfs binaries before starting the image build target
+        # Inject both mkbootimg and mkbootfs prebuilts directly into host tools bin
         mkdir -p out/host/linux-x86/bin
         curl -sL https://raw.githubusercontent.com/omnirom/android_system_core/android-9.0/mkbootimg/mkbootimg -o out/host/linux-x86/bin/mkbootimg
         chmod +x out/host/linux-x86/bin/mkbootimg
         
-        # Compile or fetch mkbootfs if possible, or compile it directly via make
-        make mkbootfs -j$(nproc --all) || true
+        # Download a prebuilt/compiled compatible mkbootfs if available or fetch from sources
+        curl -sL https://github.com/minimal-manifest-twrp/platform_system_core/raw/twrp-11/mkbootfs/mkbootfs -o out/host/linux-x86/bin/mkbootfs || \
+        curl -sL https://raw.githubusercontent.com/omnirom/android_system_core/android-9.0/cpio/mkbootfs -o out/host/linux-x86/bin/mkbootfs || true
+        chmod +x out/host/linux-x86/bin/mkbootfs
         
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
