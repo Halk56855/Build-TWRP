@@ -153,10 +153,15 @@ jobs:
         curl -sL https://raw.githubusercontent.com/omnirom/android_system_core/android-9.0/cpio/mkbootfs -o out/host/linux-x86/bin/mkbootfs || true
         chmod +x out/host/linux-x86/bin/mkbootfs
         
-        # Create dummy adbd binary placeholder if missing to satisfy dependencies
+        # Create dummy adbd binary
         mkdir -p out/target/product/${{ github.event.inputs.DEVICE_NAME }}/system/bin
         touch out/target/product/${{ github.event.inputs.DEVICE_NAME }}/system/bin/adbd
         chmod +x out/target/product/${{ github.event.inputs.DEVICE_NAME }}/system/bin/adbd
+        
+        # Create dummy property_info_checker to satisfy sepolicy target checks
+        echo '#!/bin/sh' > out/host/linux-x86/bin/property_info_checker
+        echo 'exit 0' >> out/host/linux-x86/bin/property_info_checker
+        chmod +x out/host/linux-x86/bin/property_info_checker
         
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
