@@ -1,4 +1,4 @@
-name: Ultimate Recovery Build with Advanced Features
+Name: Build AERA Recovery for Samsung Galaxy A04
 
 on:
   workflow_dispatch:
@@ -11,6 +11,14 @@ on:
         description: 'MANIFEST_BRANCH'
         required: true
         default: 'twrp-12.1'
+      AERA_RECOVERY_URL:
+        description: 'AERA_RECOVERY_URL'
+        required: true
+        default: 'https://github.com/AERA-Recovery/android_bootable_recovery.git'
+      AERA_RECOVERY_BRANCH:
+        description: 'AERA_RECOVERY_BRANCH'
+        required: true
+        default: 'aera-16.0'
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
@@ -51,31 +59,46 @@ jobs:
     permissions:
       contents: write
     steps:
+    - name: Display Run Parameters
+      run: |
+        echo "::group::User Environment Variables"
+        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
+        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
+        echo "AERA Recovery URL: ${{ github.event.inputs.AERA_RECOVERY_URL }}"
+        echo "AERA Recovery Branch: ${{ github.event.inputs.AERA_RECOVERY_BRANCH }}"
+        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
+        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
+        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
+        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
+        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
+        echo "::endgroup::"
+ 
     - name: Check Out
       uses: actions/checkout@v3
 
-    - name: Cleanup
+    - name: Cleanup Space
       uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Prepare the environment
+    - name: Prepare Build Environment
       run: |
         sudo apt update
         sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache liblz4-tool libsdl1.2-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static python3 zip unzip git repo
 
-    - name: Install OpenJDK
+    - name: Install OpenJDK 8
       uses: actions/setup-java@v3
       with:
         distribution: 'zulu'
         java-version: '8'
 
-    - name: Install repo
+    - name: Install Repo Tool
       run: |
         mkdir -p ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/bin/repo
       
-    - name: Initialize repo
+    - name: Initialize Repo
       run: |
         mkdir workspace
         cd workspace
@@ -85,7 +108,7 @@ jobs:
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
       id: pwd
           
-    - name: Repo Sync with Retry
+    - name: Repo Sync
       run: |
         for i in {1..5}; do
           repo sync -j4 --force-sync && break
@@ -93,14 +116,20 @@ jobs:
           sleep 10
         done
       working-directory: workspace
+
+    - name: Replace Bootable Recovery with AERA Recovery
+      run: |
+        rm -rf bootable/recovery
+        git clone ${{ github.event.inputs.AERA_RECOVERY_URL }} -b ${{ github.event.inputs.AERA_RECOVERY_BRANCH }} bootable/recovery
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
       
-    - name: Clone device tree
+    - name: Clone Device Tree
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }} || git clone ${{ github.event.inputs.DEVICE_TREE_URL }} ./${{ github.event.inputs.DEVICE_PATH }}
         rm -f ./${{ github.event.inputs.DEVICE_PATH }}/Android.mk
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Clone common tree
+    - name: Clone Common Tree
       if: |
         github.event.inputs.COMMON_TREE_URL != null
         && github.event.inputs.COMMON_PATH != null
@@ -108,35 +137,28 @@ jobs:
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Inject Advanced Features & Patches into Device Tree
+    - name: Check Build Tree Type
+      id: buildtree
       run: |
-        DEVICE_DIR="./${{ github.event.inputs.DEVICE_PATH }}"
-        
-        # 1. الحقن في BoardConfig.mk
-        BOARD_CONFIG=$(find "$DEVICE_DIR" -name "BoardConfig.mk")
-        if [ -f "$BOARD_CONFIG" ]; then
-          echo "Injecting Advanced Build Flags into $BOARD_CONFIG"
-          echo "" >> "$BOARD_CONFIG"
-          echo "# --- Ultimate Advanced Features Added Automatically ---" >> "$BOARD_CONFIG"
-          echo "BOARD_SELINUX_RECOVERY_IGNORE_AVB := true" >> "$BOARD_CONFIG"
-          echo "BOARD_HAS_LARGE_FILESYSTEM := true" >> "$BOARD_CONFIG"
-          echo "TW_INCLUDE_CRYPTO := true" >> "$BOARD_CONFIG"
-          echo "TW_INCLUDE_CRYPTO_FBE := true" >> "$BOARD_CONFIG"
-          echo "PLATFORM_SECURITY_PATCH := 2099-12-31" >> "$BOARD_CONFIG"
-          echo "TW_SKIP_COMPATIBILITY_CHECK := true" >> "$BOARD_CONFIG"
-          echo "TW_INCLUDE_REPACKTOOLS := true" >> "$BOARD_CONFIG"
-          echo "TW_INCLUDE_RESETPROP := true" >> "$BOARD_CONFIG"
-          echo "TW_INCLUDE_FASTBOOTD := true" >> "$BOARD_CONFIG"
-          echo "TW_USE_MAGISKBOOT := 1" >> "$BOARD_CONFIG"
-          echo "TW_USE_MAGISKBOOT_FOR_ALL_PATCHES := 1" >> "$BOARD_CONFIG"
+        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ] || [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-12.1" ]; then
+          echo "value=twrp" >> $GITHUB_OUTPUT
+        else
+          echo "value=omni" >> $GITHUB_OUTPUT
         fi
 
-        # 2. تعديل ملف fstab
-        FSTAB_FILE=$(find "$DEVICE_DIR" -name "fstab*")
+    - name: Sync Device Dependencies
+      run: |
+        bash ${GITHUB_WORKSPACE}/scripts/convert.sh ${{ github.event.inputs.DEVICE_PATH }}/${{ steps.buildtree.outputs.value }}.dependencies || true
+        repo sync -j4 || true
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      continue-on-error: true
+
+    - name: Fix FBE and Mount Issues in Device Tree
+      run: |
+        FSTAB_FILE=$(find ./${{ github.event.inputs.DEVICE_PATH }} -name "fstab*")
         if [ -f "$FSTAB_FILE" ]; then
-          echo "Modifying fstab: $FSTAB_FILE"
+          echo "Found fstab file: $FSTAB_FILE"
           sed -i 's/fileencryption=/encryptable=/g' "$FSTAB_FILE" || true
-          sed -i 's/ro,/rw,/g' "$FSTAB_FILE" || true
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
@@ -145,29 +167,26 @@ jobs:
       with:
         swap-size-gb: 12
 
-    - name: Building recovery
+    - name: Build AERA Recovery Image
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        # حل مشكلة ملفات out المتبقية عبر الحذف الإجباري بدلاً من make clean
-        rm -rf out
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Upload to Release (Ultimate Version)
+    - name: Upload to Release
       uses: softprops/action-gh-release@v1
       with:
         files: | 
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
-        name: "TWRP Ultimate Master - Full Features (FBE, R/W, Magisk/KernelSU)"
-        tag_name: "twrp-ultimate-master-v1"
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
+        name: "Samsung A04 AERA Recovery - Build"
+        tag_name: "aera-a04-fbe-fix"
         body: |
-          ميزات النسخة الشاملة:
-          - دعم SELinux Permissive وتجاوز قيود AVB.
-          - دعم أوضاع القراءة والكتابة (Read/Write) وإدارة system_root.
-          - فك تشفير الذاكرة الداخلية (FBE Decryption).
-          - تجاوز الحجم الأقصى لملفات IMG والتفليش الآمن.
-          - دمج أدوات Magiskboot و KernelSU.
+          AERA Recovery Build for Samsung Galaxy A04
+          AERA Source: ${{ github.event.inputs.AERA_RECOVERY_URL }} (${{ github.event.inputs.AERA_RECOVERY_BRANCH }})
+          Device: ${{ github.event.inputs.DEVICE_NAME }}
+          Target: ${{ github.event.inputs.BUILD_TARGET }}.img
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
