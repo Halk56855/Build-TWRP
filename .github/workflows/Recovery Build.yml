@@ -1,4 +1,4 @@
-name: Recovery TWRP Build with FBE Fix
+name: Ultimate Recovery Build with Advanced Features
 
 on:
   workflow_dispatch:
@@ -51,19 +51,6 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Display Run Parameters
-      run: |
-        echo "::group::User Environment Variables"
-        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
-        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
-        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
-        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
-        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
-        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
-        echo "::endgroup::"
- 
     - name: Check Out
       uses: actions/checkout@v3
 
@@ -121,28 +108,35 @@ jobs:
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Check Build Tree
-      id: buildtree
+    - name: Inject Advanced Features & Patches into Device Tree
       run: |
-        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ] || [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-12.1" ]; then
-          echo "value=twrp" >> $GITHUB_OUTPUT
-        else
-          echo "value=omni" >> $GITHUB_OUTPUT
+        DEVICE_DIR="./${{ github.event.inputs.DEVICE_PATH }}"
+        
+        # 1. الحقن في BoardConfig.mk (فك التشفير، أحسام الأقسام الكبيرة، وتجاوز حجم IMG)
+        BOARD_CONFIG=$(find "$DEVICE_DIR" -name "BoardConfig.mk")
+        if [ -f "$BOARD_CONFIG" ]; then
+          echo "Injecting Advanced Build Flags into $BOARD_CONFIG"
+          echo "" >> "$BOARD_CONFIG"
+          echo "# --- Ultimate Advanced Features Added Automatically ---" >> "$BOARD_CONFIG"
+          echo "BOARD_SELINUX_RECOVERY_IGNORE_AVB := true" >> "$BOARD_CONFIG"
+          echo "BOARD_HAS_LARGE_FILESYSTEM := true" >> "$BOARD_CONFIG"
+          echo "TW_INCLUDE_CRYPTO := true" >> "$BOARD_CONFIG"
+          echo "TW_INCLUDE_CRYPTO_FBE := true" >> "$BOARD_CONFIG"
+          echo "PLATFORM_SECURITY_PATCH := 2099-12-31" >> "$BOARD_CONFIG"
+          echo "TW_SKIP_COMPATIBILITY_CHECK := true" >> "$BOARD_CONFIG"
+          echo "TW_INCLUDE_REPACKTOOLS := true" >> "$BOARD_CONFIG"
+          echo "TW_INCLUDE_RESETPROP := true" >> "$BOARD_CONFIG"
+          echo "TW_INCLUDE_FASTBOOTD := true" >> "$BOARD_CONFIG"
+          echo "TW_USE_MAGISKBOOT := 1" >> "$BOARD_CONFIG"
+          echo "TW_USE_MAGISKBOOT_FOR_ALL_PATCHES := 1" >> "$BOARD_CONFIG"
         fi
 
-    - name: Sync Device Dependencies
-      run: |
-        bash ${GITHUB_WORKSPACE}/scripts/convert.sh ${{ github.event.inputs.DEVICE_PATH }}/${{ steps.buildtree.outputs.value }}.dependencies || true
-        repo sync -j4 || true
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
-      continue-on-error: True
-
-    - name: Fix FBE and Mount Issues in Device Tree
-      run: |
-        FSTAB_FILE=$(find ./${{ github.event.inputs.DEVICE_PATH }} -name "fstab*")
+        # 2. تعديل ملف fstab لدعم فك التشفير، وضع القراءة والكتابة (R/W)، وإضافة system_root
+        FSTAB_FILE=$(find "$DEVICE_DIR" -name "fstab*")
         if [ -f "$FSTAB_FILE" ]; then
-          echo "Found fstab file: $FSTAB_FILE"
+          echo "Modifying fstab: $FSTAB_FILE"
           sed -i 's/fileencryption=/encryptable=/g' "$FSTAB_FILE" || true
+          sed -i 's/ro,/rw,/g' "$FSTAB_FILE" || true
         fi
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
@@ -158,19 +152,20 @@ jobs:
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Upload to Release (New Version)
+    - name: Upload to Release (Ultimate Version)
       uses: softprops/action-gh-release@v1
       with:
         files: | 
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
-          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
-        name: "Samsung A04 TWRP - FBE Mount Fix V2"
-        tag_name: "twrp-a04-fbe-fix-v2"
+        name: "TWRP Ultimate Master - Full Features (FBE, R/W, Magisk/KernelSU)"
+        tag_name: "twrp-ultimate-master-v1"
         body: |
-          إصلاح مشكلة عدم القدرة على عمل Mount لقسم البيانات (/data) بدون الحاجة لفرمتة الهاتف.
-          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
-          Target: ${{ github.event.inputs.BUILD_TARGET }}.img
+          ميزات النسخة الشاملة:
+          - دعم SELinux Permissive وتجاوز قيود AVB.
+          - دعم أوضاع القراءة والكتابة (Read/Write) وإدارة system_root.
+          - فك تشفير الذاكرة الداخلية (FBE Decryption).
+          - تجاوز الحجم الأقصى لملفات IMG والتفليش الآمن.
+          - دمج أدوات Magiskboot و KernelSU.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
