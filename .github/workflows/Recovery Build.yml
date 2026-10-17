@@ -112,7 +112,7 @@ jobs:
       run: |
         DEVICE_DIR="./${{ github.event.inputs.DEVICE_PATH }}"
         
-        # 1. الحقن في BoardConfig.mk (فك التشفير، أحسام الأقسام الكبيرة، وتجاوز حجم IMG)
+        # 1. الحقن في BoardConfig.mk
         BOARD_CONFIG=$(find "$DEVICE_DIR" -name "BoardConfig.mk")
         if [ -f "$BOARD_CONFIG" ]; then
           echo "Injecting Advanced Build Flags into $BOARD_CONFIG"
@@ -131,7 +131,7 @@ jobs:
           echo "TW_USE_MAGISKBOOT_FOR_ALL_PATCHES := 1" >> "$BOARD_CONFIG"
         fi
 
-        # 2. تعديل ملف fstab لدعم فك التشفير، وضع القراءة والكتابة (R/W)، وإضافة system_root
+        # 2. تعديل ملف fstab
         FSTAB_FILE=$(find "$DEVICE_DIR" -name "fstab*")
         if [ -f "$FSTAB_FILE" ]; then
           echo "Modifying fstab: $FSTAB_FILE"
@@ -149,7 +149,9 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+        # حل مشكلة ملفات out المتبقية عبر الحذف الإجباري بدلاً من make clean
+        rm -rf out
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release (Ultimate Version)
