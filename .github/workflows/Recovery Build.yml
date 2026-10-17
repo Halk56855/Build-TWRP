@@ -1,4 +1,4 @@
-Name: Build AERA Recovery for Samsung Galaxy A04
+name: Build AERA Recovery for Samsung Galaxy A04
 
 on:
   workflow_dispatch:
