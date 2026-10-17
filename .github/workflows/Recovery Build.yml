@@ -73,4 +73,104 @@ jobs:
     - name: Prepare the environment
       run: |
         sudo apt update
-        sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache liblz4-tool
+        sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache liblz4-tool libsdl1.2-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static python3 zip unzip git repo
+
+    - name: Install OpenJDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '8'
+
+    - name: Install repo
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+      
+    - name: Initialize repo
+      run: |
+        mkdir workspace
+        cd workspace
+        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+        git config --global user.email "halk56855@gmail.com"
+        git config --global user.name "Halk56855"
+        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+      id: pwd
+          
+    - name: Repo Sync with Retry
+      run: |
+        for i in {1..5}; do
+          repo sync -j4 --force-sync && break
+          echo "Repo sync failed. Retrying ($i/5)..."
+          sleep 10
+        done
+      working-directory: workspace
+      
+    - name: Clone device tree
+      run: |
+        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }} || git clone ${{ github.event.inputs.DEVICE_TREE_URL }} ./${{ github.event.inputs.DEVICE_PATH }}
+        rm -f ./${{ github.event.inputs.DEVICE_PATH }}/Android.mk
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Clone common tree
+      if: |
+        github.event.inputs.COMMON_TREE_URL != null
+        && github.event.inputs.COMMON_PATH != null
+      run: |
+        git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Check Build Tree
+      id: buildtree
+      run: |
+        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ] || [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-12.1" ]; then
+          echo "value=twrp" >> $GITHUB_OUTPUT
+        else
+          echo "value=omni" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Sync Device Dependencies
+      run: |
+        bash ${GITHUB_WORKSPACE}/scripts/convert.sh ${{ github.event.inputs.DEVICE_PATH }}/${{ steps.buildtree.outputs.value }}.dependencies || true
+        repo sync -j4 || true
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      continue-on-error: True
+
+    - name: Fix FBE and Mount Issues in Device Tree
+      run: |
+        FSTAB_FILE=$(find ./${{ github.event.inputs.DEVICE_PATH }} -name "fstab*")
+        if [ -f "$FSTAB_FILE" ]; then
+          echo "Found fstab file: $FSTAB_FILE"
+          sed -i 's/fileencryption=/encryptable=/g' "$FSTAB_FILE" || true
+        fi
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Set Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 12
+
+    - name: Building recovery
+      run: |
+        source build/envsetup.sh
+        export ALLOW_MISSING_DEPENDENCIES=true
+        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
+    - name: Upload to Release (New Version)
+      uses: softprops/action-gh-release@v1
+      with:
+        files: | 
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
+          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
+        name: "Samsung A04 TWRP - FBE Mount Fix V2"
+        tag_name: "twrp-a04-fbe-fix-v2"
+        body: |
+          إصلاح مشكلة عدم القدرة على عمل Mount لقسم البيانات (/data) بدون الحاجة لفرمتة الهاتف.
+          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          Device: ${{ github.event.inputs.DEVICE_NAME }}
+          Target: ${{ github.event.inputs.BUILD_TARGET }}.img
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
