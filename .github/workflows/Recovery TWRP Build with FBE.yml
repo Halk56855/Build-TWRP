@@ -1,30 +1,35 @@
-name: Recovery TWRP Build with FBE
+name: Recovery TWRP Multi-Build (11 & 12.1)
 
 on:
   workflow_dispatch:
     inputs:
-      MANIFEST_URL:
-        description: 'MANIFEST_URL'
-        required: true
-        default: 'https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp'
       MANIFEST_BRANCH:
-        description: 'MANIFEST_BRANCH'
+        description: 'TWRP Version / Manifest Branch'
         required: true
         default: 'twrp-12.1'
+        type: choice
+        options:
+          - 'twrp-11'
+          - 'twrp-12.1'
       DEVICE_TREE_URL:
-        description: 'DEVICE_TREE_URL'
+        description: 'Select Device Tree URL'
         required: true
         default: 'https://github.com/Halk56855/android_device_samsung_a04-TWRP.git'
+        type: choice
+        options:
+          - 'https://github.com/Halk56855/android_device_samsung_a04-TWRP.git'
+          - 'https://github.com/Halk56855/android_recovery_samsung_a04.git'
+          - 'https://github.com/Halk56855/a04-TWRP-11-dt.git'
       DEVICE_TREE_BRANCH:
-        description: 'DEVICE_TREE_BRANCH'
+        description: 'Device Tree Branch (e.g., twrp-11 or twrp-12.1)'
         required: true
         default: 'twrp-12.1'
       DEVICE_PATH:
-        description: 'DEVICE_PATH'
+        description: 'Device Path'
         required: true
         default: 'device/samsung/a04'
       COMMON_TREE_URL:
-        description: 'COMMON_TREE_URL'
+        description: 'COMMON_TREE_URL (Leave empty if not needed)'
         required: false
         default: 'https://github.com/rsuplaygrnd/android_recovery_samsung_mt6765-common.git'
       COMMON_PATH:
@@ -32,15 +37,15 @@ on:
         required: false
         default: 'device/samsung/jdm-mt6765-cmn'
       DEVICE_NAME:
-        description: 'DEVICE_NAME'
+        description: 'Device Name'
         required: true
         default: 'a04'
       MAKEFILE_NAME:
-        description: 'MAKEFILE_NAME'
+        description: 'Makefile Name (e.g., twrp_a04 or omni_a04)'
         required: true
         default: 'twrp_a04'
       BUILD_TARGET:
-        description: 'BUILD_TARGET'
+        description: 'Build Target'
         required: true
         default: 'recovery'
 
@@ -54,7 +59,6 @@ jobs:
     - name: Display Run Parameters
       run: |
         echo "::group::User Environment Variables"
-        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
         echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
         echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
         echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
@@ -95,7 +99,13 @@ jobs:
         echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
         git config --global user.email "halk56855@gmail.com"
         git config --global user.name "Halk56855"
-        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+        
+        # اختيار المانيفست بناءً على إصدار TWRP المحدد
+        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ]; then
+          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp -b twrp-11
+        else
+          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp -b twrp-12.1
+        fi
       id: pwd
           
     - name: Repo Sync
@@ -111,19 +121,19 @@ jobs:
 
     - name: Clone common tree
       if: |
-        github.event.inputs.COMMON_TREE_URL != null
-        && github.event.inputs.COMMON_PATH != null
+        github.event.inputs.COMMON_TREE_URL != ''
+        && github.event.inputs.COMMON_PATH != ''
       run: |
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b master ./${{ github.event.inputs.COMMON_PATH }} || git clone ${{ github.event.inputs.COMMON_TREE_URL }} ./${{ github.event.inputs.COMMON_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      working-directory: ${{ّ steps.pwd.outputs.workspace-folder }}
 
     - name: Check Build Tree
       id: buildtree
       run: |
-        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ] || [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-12.1" ]; then
-          echo "value=twrp" >> $GITHUB_OUTPUT
-        else
+        if [ "${{ github.event.inputs.MANIFEST_BRANCH }}" = "twrp-11" ]; then
           echo "value=omni" >> $GITHUB_OUTPUT
+        else
+          echo "value=twrp" >> $GITHUB_OUTPUT
         fi
 
     - name: Sync Device Dependencies
@@ -152,11 +162,11 @@ jobs:
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
           workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*vendor*.img
-        name: "a04-twrp-release"
-        tag_name: "twrp-a04-fbe"
+        name: "a04-twrp-${{ github.event.inputs.MANIFEST_BRANCH }}-release"
+        tag_name: "twrp-a04-${{ github.event.inputs.MANIFEST_BRANCH }}"
         body: |
           Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
+          Device Tree: ${{ github.event.inputs.DEVICE_TREE_URL }}
           Target: ${{ github.event.inputs.BUILD_TARGET }}.img
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
