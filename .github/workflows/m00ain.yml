@@ -1,4 +1,4 @@
-name: Build TWRP 14 for Galaxy A04 (AOSP Tree)
+name: Build TWRP 14 for Galaxy A04 (Full Trees)
 
 on:
   workflow_dispatch:
@@ -45,21 +45,31 @@ jobs:
         rm -rf bootable/recovery
         git clone https://github.com/TeamWin/android_bootable_recovery.git -b android-14 bootable/recovery
 
-    - name: Clone Modern A04 Device Tree (Lineage-22.2)
+    - name: Clone Modern A04 Trees (Device, Kernel, Vendor)
       run: |
         cd workspace
         git clone https://github.com/A04-Trees-and-ROMs/android_device_samsung_a04.git -b lineage-22.2 device/samsung/a04
+        git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
+        git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
+
+    - name: Patch AndroidProducts.mk for Android 14
+      run: |
+        cd workspace/device/samsung/a04
+        echo "" >> AndroidProducts.mk
+        echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
+        echo "    lineage_a04-ap2a-userdebug \\" >> AndroidProducts.mk
+        echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
     - name: Start Building
       run: |
         cd workspace
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch lineage_a04-userdebug
+        lunch lineage_a04-ap2a-userdebug
         mka recoveryimage
 
     - name: Upload Recovery Image
       uses: actions/upload-artifact@v4
       with:
-        name: twrp-14-samsung-a04-modern
+        name: twrp-14-samsung-a04
         path: workspace/out/target/product/a04/recovery.img
