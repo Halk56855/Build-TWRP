@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Final Fix)
+name: Build OrangeFox 14.1 for Galaxy A04 (Ultimate Low-RAM)
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
     - name: Increase Swap Memory
       run: |
         sudo swapoff -a
-        sudo fallocate -l 10G /swapfile
+        sudo fallocate -l 15G /swapfile
         sudo chmod 600 /swapfile
         sudo mkswap /swapfile
         sudo swapon /swapfile
@@ -61,7 +61,6 @@ jobs:
       run: |
         cd ~/fox_14.1
         
-        # 1. إصلاح شجرة الجهاز
         cd device/samsung/a04
         sed -i 's|vendor/lineage/config/common_full_phone.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i 's|vendor/lineage/config/common.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
@@ -71,12 +70,11 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. إزالة أو تعطيل ملفات VINTF المعارضة في مستودع الفيندور لتجنب خطأ Makefile
         cd ../../../vendor/samsung/a04
         find . -name "*.mk" -exec sed -i '/manifest_dsds.xml/d' {} +
         find . -name "*.mk" -exec sed -i '/vintf/d' {} +
 
-    - name: Build OrangeFox Recovery (Safe Mode - Low RAM)
+    - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
         cd ~/fox_14.1
         export ALLOW_MISSING_DEPENDENCIES=true
@@ -94,8 +92,9 @@ jobs:
         source build/envsetup.sh
         lunch lineage_a04-ap2a-eng
         
-        # التجميع باستخدام 4 خيوط لمنع انهيار الذاكرة
-        mka recoveryimage -j4
+        # رفع مساحة الـ Swap وزيادة الأمان وتخفيض الخيوط إلى -j2 لمنع الـ OOM Killer
+        export MALLOC_PERTURB_=$(($RANDOM % 32 + 1))
+        mka recoveryimage -j2
 
     - name: Upload OrangeFox Artifacts
       uses: actions/upload-artifact@v4
