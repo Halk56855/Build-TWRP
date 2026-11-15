@@ -52,9 +52,19 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Patch AndroidProducts.mk for Android 14
+    - name: Fix Missing Release Config & Patch AndroidProducts.mk
       run: |
-        cd workspace/device/samsung/a04
+        cd workspace
+        # إنشاء ملف تعريف الإصدار المفقود في المانيفست المصغر
+        mkdir -p build/release/release_configs
+        cat << 'EOF' > build/release/release_configs/ap2a.textproto
+        name: "ap2a"
+        aconfig_value_sets: "aconfig_value_set.pb"
+        EOF
+        touch build/release/release_configs/aconfig_value_set.pb
+
+        # إضافة خيارات الإصدار الثلاثية لشجرة الجهاز
+        cd device/samsung/a04
         echo "" >> AndroidProducts.mk
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-userdebug \\" >> AndroidProducts.mk
