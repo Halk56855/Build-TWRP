@@ -29,7 +29,6 @@ jobs:
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/local/bin/repo
-        # إضافة bin إلى مسار النظام المؤقت لضمان رؤية أمر repo
         echo "$HOME/bin" >> $GITHUB_PATH
 
     - name: Sync OrangeFox 14.1 Sources
@@ -54,7 +53,6 @@ jobs:
         cd ~/fox_14.1/device/samsung/a04
         echo "" >> AndroidProducts.mk
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
-        echo "    twrp_a04-ap2a-eng \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
     - name: Build OrangeFox Recovery (With Black Theme Configs)
