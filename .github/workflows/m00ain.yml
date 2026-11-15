@@ -1,4 +1,4 @@
-name: Build TWRP 14 for Galaxy A04 (Full Trees)
+name: Build OrangeFox 14.1 for Galaxy A04 (Black Theme)
 
 on:
   workflow_dispatch:
@@ -21,65 +21,52 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev python3 python-is-python3
+        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev python3 python-is-python3 aria2
 
-    - name: Install Repo
+    - name: Sync OrangeFox 14.1 Sources
       run: |
-        mkdir -p ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-        chmod a+x ~/bin/repo
-        sudo ln -sf ~/bin/repo /usr/local/bin/repo
-
-    - name: Initialize Manifest TWRP 14
-      run: |
-        mkdir workspace
-        cd workspace
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14
-        repo sync -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+        mkdir -p ~/OrangeFox_sync
+        cd ~/OrangeFox_sync
+        git clone https://gitlab.com/OrangeFox/sync.git
+        cd sync
+        ./orangefox_sync.sh --branch 14.1 --path ~/fox_14.1
 
-    - name: Use Official TeamWin Recovery Repo (Android 14)
+    - name: Clone A04 Trees (Device, Kernel, Vendor)
       run: |
-        cd workspace
-        rm -rf bootable/recovery
-        git clone https://github.com/TeamWin/android_bootable_recovery.git -b android-14 bootable/recovery
-
-    - name: Clone Modern A04 Trees (Device, Kernel, Vendor)
-      run: |
-        cd workspace
+        cd ~/fox_14.1
         git clone https://github.com/A04-Trees-and-ROMs/android_device_samsung_a04.git -b lineage-22.2 device/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Fix Missing Release Config & Patch AndroidProducts.mk
+    - name: Configure OrangeFox & Lunch Choices
       run: |
-        cd workspace
-        # إنشاء ملف تعريف الإصدار المفقود في المانيفست المصغر
-        mkdir -p build/release/release_configs
-        cat << 'EOF' > build/release/release_configs/ap2a.textproto
-        name: "ap2a"
-        aconfig_value_sets: "aconfig_value_set.pb"
-        EOF
-        touch build/release/release_configs/aconfig_value_set.pb
-
-        # إضافة خيارات الإصدار الثلاثية لشجرة الجهاز
-        cd device/samsung/a04
+        cd ~/fox_14.1/device/samsung/a04
         echo "" >> AndroidProducts.mk
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
-        echo "    lineage_a04-ap2a-userdebug \\" >> AndroidProducts.mk
+        echo "    twrp_a04-ap2a-eng \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-    - name: Start Building
+    - name: Build OrangeFox Recovery (With Black Theme Configs)
       run: |
-        cd workspace
+        cd ~/fox_14.1
         export ALLOW_MISSING_DEPENDENCIES=true
+        export FOX_BUILD_DEVICE=a04
+        export OF_MAINTAINER="Halk56855"
+        
+        # إعدادات الوضع الأسود والثيم الداكن المخصصة لـ OrangeFox
+        export OF_USE_DARK_MODE=1                # تفعيل الوضع الداكن إجبارياً
+        export OF_ALLOW_DISABLE_NAVBAR=0
+        
         source build/envsetup.sh
-        lunch lineage_a04-ap2a-userdebug
+        lunch lineage_a04-ap2a-eng
         mka recoveryimage
 
-    - name: Upload Recovery Image
+    - name: Upload OrangeFox Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: twrp-14-samsung-a04
-        path: workspace/out/target/product/a04/recovery.img
+        name: OrangeFox-R11.1-A14.1-samsung-a04-Black
+        path: |
+          ~/fox_14.1/out/target/product/a04/OrangeFox*.zip
+          ~/fox_14.1/out/target/product/a04/recovery.img
