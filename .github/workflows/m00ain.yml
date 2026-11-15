@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Black Theme)
+name: Build OrangeFox 14.1 for Galaxy A04 (Default Black Theme)
 
 on:
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
       run: |
         cd ~/fox_14.1/device/samsung/a04
         
-        # استبدال استدعاءات vendor/lineage غير الموجودة بملفات النظام القياسية لـ AOSP/TWRP
+        # استبدال استدعاءات vendor/lineage بملفات النظام القياسية
         sed -i 's|vendor/lineage/config/common_full_phone.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i 's|vendor/lineage/config/common.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i '/vendor\/lineage/d' lineage_a04.mk
@@ -62,16 +62,22 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-    - name: Build OrangeFox Recovery (With Black Theme Configs)
+    - name: Build OrangeFox Recovery (Force Default Black Theme)
       run: |
         cd ~/fox_14.1
         export ALLOW_MISSING_DEPENDENCIES=true
         export FOX_BUILD_DEVICE=a04
         export OF_MAINTAINER="Halk56855"
         
-        # إعدادات الوضع الأسود والثيم الداكن المخصصة لـ OrangeFox
+        # إجبار الوضع الأسود والثيم الداكن ليكون الافتراضي عند الإقلاع
         export OF_USE_DARK_MODE=1
+        export OF_FORCE_DARK_MODE=1
         export OF_ALLOW_DISABLE_NAVBAR=0
+        
+        # إعدادات دقة الشاشة
+        export TARGET_SCREEN_WIDTH=720
+        export TARGET_SCREEN_HEIGHT=1600
+        export TW_THEME=portrait_hdpi
         
         source build/envsetup.sh
         lunch lineage_a04-ap2a-eng
@@ -80,7 +86,7 @@ jobs:
     - name: Upload OrangeFox Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: OrangeFox-R11.1-A14.1-samsung-a04-Black
+        name: OrangeFox-R11.1-A14.1-samsung-a04-Default-Black
         path: |
           ~/fox_14.1/out/target/product/a04/OrangeFox*.zip
           ~/fox_14.1/out/target/product/a04/recovery.img
