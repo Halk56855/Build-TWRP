@@ -23,6 +23,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev python3 python-is-python3 aria2
 
+    - name: Install Repo Tool
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/local/bin/repo
+        # إضافة bin إلى مسار النظام المؤقت لضمان رؤية أمر repo
+        echo "$HOME/bin" >> $GITHUB_PATH
+
     - name: Sync OrangeFox 14.1 Sources
       run: |
         git config --global user.name "GitHub Actions"
@@ -56,7 +65,7 @@ jobs:
         export OF_MAINTAINER="Halk56855"
         
         # إعدادات الوضع الأسود والثيم الداكن المخصصة لـ OrangeFox
-        export OF_USE_DARK_MODE=1                # تفعيل الوضع الداكن إجبارياً
+        export OF_USE_DARK_MODE=1
         export OF_ALLOW_DISABLE_NAVBAR=0
         
         source build/envsetup.sh
