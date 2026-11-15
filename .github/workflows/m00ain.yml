@@ -1,0 +1,65 @@
+name: Build TWRP 14 for Galaxy A04 (AOSP Tree)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Free Up Disk Space
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: false
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc yasm zlib1g-dev python3 python-is-python3
+
+    - name: Install Repo
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/local/bin/repo
+
+    - name: Initialize Manifest TWRP 14
+      run: |
+        mkdir workspace
+        cd workspace
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14
+        repo sync -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+    - name: Use Official TeamWin Recovery Repo (Android 14)
+      run: |
+        cd workspace
+        rm -rf bootable/recovery
+        git clone https://github.com/TeamWin/android_bootable_recovery.git -b android-14 bootable/recovery
+
+    - name: Clone Modern A04 Device Tree (Lineage-22.2)
+      run: |
+        cd workspace
+        git clone https://github.com/A04-Trees-and-ROMs/android_device_samsung_a04.git -b lineage-22.2 device/samsung/a04
+
+    - name: Start Building
+      run: |
+        cd workspace
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch lineage_a04-userdebug
+        mka recoveryimage
+
+    - name: Upload Recovery Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: twrp-14-samsung-a04-modern
+        path: workspace/out/target/product/a04/recovery.img
