@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Default Black Theme)
+name: Build OrangeFox 14.1 for Galaxy A04 (Safe Low-RAM Build)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Free Up Disk Space
+    - name: Free Up Disk Space & Setup Swap
       uses: jlumbroso/free-disk-space@main
       with:
         tool-cache: true
@@ -17,6 +17,15 @@ jobs:
         haskell: true
         large-packages: true
         docker-images: false
+
+    - name: Increase Swap Memory
+      run: |
+        sudo swapoff -a
+        sudo fallocate -l 10G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        free -h
 
     - name: Install Dependencies
       run: |
@@ -52,36 +61,34 @@ jobs:
       run: |
         cd ~/fox_14.1/device/samsung/a04
         
-        # استبدال استدعاءات vendor/lineage بملفات النظام القياسية
         sed -i 's|vendor/lineage/config/common_full_phone.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i 's|vendor/lineage/config/common.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i '/vendor\/lineage/d' lineage_a04.mk
 
-        # إضافة خيار الـ lunch الثلاثي لأندرويد 14.1
         echo "" >> AndroidProducts.mk
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-    - name: Build OrangeFox Recovery (Force Default Black Theme)
+    - name: Build OrangeFox Recovery (Safe Mode - Low RAM)
       run: |
         cd ~/fox_14.1
         export ALLOW_MISSING_DEPENDENCIES=true
         export FOX_BUILD_DEVICE=a04
         export OF_MAINTAINER="Halk56855"
         
-        # إجبار الوضع الأسود والثيم الداكن ليكون الافتراضي عند الإقلاع
+        # إعدادات الثيم الأسود الافتراضي ودقة الشاشة
         export OF_USE_DARK_MODE=1
         export OF_FORCE_DARK_MODE=1
         export OF_ALLOW_DISABLE_NAVBAR=0
-        
-        # إعدادات دقة الشاشة
         export TARGET_SCREEN_WIDTH=720
         export TARGET_SCREEN_HEIGHT=1600
         export TW_THEME=portrait_hdpi
         
         source build/envsetup.sh
         lunch lineage_a04-ap2a-eng
-        mka recoveryimage
+        
+        # استخدام j4 لتقليل استهلاك الرام ومنع قتل العملية (OOM)
+        mka recoveryimage -j4
 
     - name: Upload OrangeFox Artifacts
       uses: actions/upload-artifact@v4
