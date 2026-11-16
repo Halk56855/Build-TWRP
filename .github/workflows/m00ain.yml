@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Final Soong Fix)
+name: Build OrangeFox 14.1 for Galaxy A04 (Absolute Final Fix)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Fix Device/Vendor Conflicts & Remove Problematic Android.bp
+    - name: Purge VINTF Copy Commands from Vendor
       run: |
         cd ~/fox_14.1
         
@@ -71,9 +71,12 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. حذف ملف Android.bp الخاص بالفيندور لمنع أخطاء مسارات الـ VINTF المفقودة
+        # 2. إزالة أي سطر في ملفات الـ mk ينسخ ملفات تحتوي على vintf أو manifest أو .xml عبر PRODUCT_COPY_FILES
         cd ../../../vendor/samsung/a04
         rm -f Android.bp
+        find . -name "*.mk" -type f -exec sed -i '/vintf/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/manifest/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/\.xml:/d' {} +
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
