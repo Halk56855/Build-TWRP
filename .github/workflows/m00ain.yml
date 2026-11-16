@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Seccomp Fix)
+name: Build OrangeFox 14.1 for Galaxy A04 (Ultimate Fix)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Purge Conflicting Seccomp & Policy Files from Vendor
+    - name: Completely Strip VINTF and Copy Conflicts from Vendor
       run: |
         cd ~/fox_14.1
         
@@ -71,11 +71,13 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. إزالة مجلدات وملفات سياسات seccomp المسببة لتداخل الأوامر في الفيندور
+        # 2. إزالة متطرفة لأي أمر نسخ يخص الـ vintf أو الـ manifest في مجلد الفيندور
         cd ../../../vendor/samsung/a04
-        rm -rf proprietary/vendor/etc/seccomp_policy proprietary/etc/seccomp_policy etc/seccomp_policy 2>/dev/null || true
-        find . -name "*.mk" -type f -exec sed -i '/seccomp/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/mediacodec\.policy/d' {} +
+        rm -f Android.bp
+        find . -name "*.mk" -type f -exec sed -i '/manifest_dsds\.xml/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/vintf/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/manifest/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*xml/d' {} +
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
