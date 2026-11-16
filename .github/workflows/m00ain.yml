@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Final Manifest Strip)
+name: Build OrangeFox 14.1 for Galaxy A04 (Final Manifest Purge)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Nuke Proprietary VINTF XML Files & Clean Vendor
+    - name: Total Purge of VINTF Manifest Files and Rules
       run: |
         cd ~/fox_14.1
         
@@ -71,16 +71,17 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. حذف ملفات الـ VINTF والـ odm المسببة للمشكلة من مجلد الفيندور نهائياً
+        # 2. حذف متطرف لجميع ملفات الـ manifest وملفات الـ XML الخاصة بالـ VINTF من الفيندور
         cd ../../../vendor/samsung/a04
         rm -f Android.bp
-        rm -rf proprietary/odm/etc/vintf proprietary/vendor/etc/vintf odm/etc/vintf vendor/etc/vintf 2>/dev/null || true
-        find . -name "manifest_dsds.xml" -delete
+        find . -name "*manifest*.xml" -delete
         find . -name "*.xml" -path "*/vintf/*" -delete
+        find . -name "*.xml" -path "*/odm/*" -delete
         
-        # إزالة الأسطر التي تحاول نسخ ملفات الـ xml من ملفات الـ Make
-        find . -name "*.mk" -type f -exec sed -i '/manifest_dsds\.xml/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*vintf/d' {} +
+        # إزالة أي أسطر نسخ تخص الـ manifest أو الـ vintf من ملفات الـ Make
+        find . -name "*.mk" -type f -exec sed -i '/manifest/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/vintf/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*xml/d' {} +
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
