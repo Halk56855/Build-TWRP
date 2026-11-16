@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Definitive Seccomp Fix)
+name: Build OrangeFox 14.1 for Galaxy A04 (Final Manifest Strip)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Deep Purge Seccomp & Policy Overrides from Vendor
+    - name: Nuke Proprietary VINTF XML Files & Clean Vendor
       run: |
         cd ~/fox_14.1
         
@@ -71,13 +71,16 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. إزالة متطرفة وشاملة لأي أوامر نسخ تخص الـ seccomp أو السياسات في الفيندور
+        # 2. حذف ملفات الـ VINTF والـ odm المسببة للمشكلة من مجلد الفيندور نهائياً
         cd ../../../vendor/samsung/a04
         rm -f Android.bp
-        find . -name "*.mk" -type f -exec sed -i '/mediacodec\.policy/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/seccomp/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*policy/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*seccomp/d' {} +
+        rm -rf proprietary/odm/etc/vintf proprietary/vendor/etc/vintf odm/etc/vintf vendor/etc/vintf 2>/dev/null || true
+        find . -name "manifest_dsds.xml" -delete
+        find . -name "*.xml" -path "*/vintf/*" -delete
+        
+        # إزالة الأسطر التي تحاول نسخ ملفات الـ xml من ملفات الـ Make
+        find . -name "*.mk" -type f -exec sed -i '/manifest_dsds\.xml/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*vintf/d' {} +
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
