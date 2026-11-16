@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Final Manifest Purge)
+name: Build OrangeFox 14.1 for Galaxy A04 (Final Seccomp Strip)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Total Purge of VINTF Manifest Files and Rules
+    - name: Complete Purge of Seccomp and Policy Conflicts
       run: |
         cd ~/fox_14.1
         
@@ -71,17 +71,22 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. حذف متطرف لجميع ملفات الـ manifest وملفات الـ XML الخاصة بالـ VINTF من الفيندور
+        # 2. إزالة جذرية لجميع ملفات السياسات وملفات الـ seccomp المسببة للتضارب من مجلد الفيندور
         cd ../../../vendor/samsung/a04
         rm -f Android.bp
-        find . -name "*manifest*.xml" -delete
-        find . -name "*.xml" -path "*/vintf/*" -delete
-        find . -name "*.xml" -path "*/odm/*" -delete
         
-        # إزالة أي أسطر نسخ تخص الـ manifest أو الـ vintf من ملفات الـ Make
-        find . -name "*.mk" -type f -exec sed -i '/manifest/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/vintf/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*xml/d' {} +
+        # حذف المجلدات بالكامل إن وجدت
+        rm -rf proprietary/vendor/etc/seccomp_policy proprietary/etc/seccomp_policy etc/seccomp_policy 2>/dev/null || true
+        
+        # البحث عن وحذف أي ملفات سياسات متعلقة بـ mediacodec أو seccomp
+        find . -name "*mediacodec*.policy" -delete
+        find . -name "*.policy" -delete
+        find . -type d -name "seccomp_policy" -exec rm -rf {} + 2>/dev/null || true
+        
+        # تنظيف أي أوامر نسخ تخص الـ seccomp أو السياسات داخل ملفات الـ Make
+        find . -name "*.mk" -type f -exec sed -i '/seccomp/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/mediacodec/d' {} +
+        find . -name "*.mk" -type f -exec sed -i '/PRODUCT_COPY_FILES.*policy/d' {} +
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
