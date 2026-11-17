@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Robust Clean Fix)
+name: Build OrangeFox 14.1 for Galaxy A04 (Ultimate Vintf Annihilation)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Safe and Recursive Eradication of Conflicts
+    - name: Total Annihilation of Vintf and Manifest Files
       run: |
         cd ~/fox_14.1
         
@@ -71,26 +71,21 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. استخدام rm -rf بشكل آمن وتلافي أخطاء find -delete للمجلدات غير الفارغة
-        cd ~/fox_14.1
-        for d in device/samsung/a04 vendor/samsung/a04; do
-            if [ -d "$d" ]; then
-                cd "$d"
-                rm -f Android.bp 2>/dev/null || true
-                
-                # الحذف الآمن للمجلدات والملفات
-                find . -type d -name "*seccomp*" -exec rm -rf {} + 2>/dev/null || true
-                find . -type d -name "*mediacodec*" -exec rm -rf {} + 2>/dev/null || true
-                find . -type f -name "*mediacodec*" -delete 2>/dev/null || true
-                find . -type f -name "*seccomp*" -delete 2>/dev/null || true
-                
-                # تنظيف محتويات ملفات الـ Make
-                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/mediacodec/d' {} + 2>/dev/null || true
-                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/seccomp/d' {} + 2>/dev/null || true
-                
-                cd ~/fox_14.1
-            fi
-        done
+        # 2. حذف جذري وقاطع لمجلدات وفهارس الـ Vintf والـ odm بالكامل من الفيندور وجهاز العرض
+        cd ~/fox_14.1/vendor/samsung/a04
+        rm -f Android.bp 2>/dev/null || true
+        
+        # تدمير أي مجلدات أو ملفات تخص الـ vintf أو الـ odm أو الـ manifest
+        rm -rf proprietary/odm/etc/vintf proprietary/vendor/etc/vintf odm/etc/vintf vendor/etc/vintf 2>/dev/null || true
+        find . -type d -name "vintf" -exec rm -rf {} + 2>/dev/null || true
+        find . -type d -name "odm" -exec rm -rf {} + 2>/dev/null || true
+        find . -name "*manifest*.xml" -delete 2>/dev/null || true
+        find . -name "*.xml" -exec rm -f {} + 2>/dev/null || true
+
+        # تنظيف ملفات الـ Make من أي إشارة للـ vintf أو الـ manifest
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/vintf/d' {} + 2>/dev/null || true
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/manifest/d' {} + 2>/dev/null || true
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/ODM_MANIFEST_FILES/d' {} + 2>/dev/null || true
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
