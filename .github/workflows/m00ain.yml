@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Absolute Vintf Purge)
+name: Build OrangeFox 14.1 for Galaxy A04 (Final Seccomp Eradication)
 
 on:
   workflow_dispatch:
@@ -57,11 +57,11 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Absolute Purge of Vintf and Manifest References
+    - name: Aggressive Eradication of Seccomp and Mediacodec Conflicts
       run: |
         cd ~/fox_14.1
         
-        # 1. تصحيح ملفات شجرة الجهاز
+        # 1. تصحيح ملفات شجرة الجهاز الأساسية
         cd device/samsung/a04
         sed -i 's|vendor/lineage/config/common_full_phone.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
         sed -i 's|vendor/lineage/config/common.mk|build/make/target/product/base_system.mk|g' lineage_a04.mk
@@ -71,18 +71,19 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. إزالة جزرية لمجلدات و ملفات الـ Vintf ومحاربة أي تعريف داخل ملفات الـ BoardConfig أو الـ Make
-        cd ../../../vendor/samsung/a04
-        rm -f Android.bp
-        
-        # حذف مسارات الـ Vintf تماماً من الملفات الاحتكارية
-        rm -rf proprietary/odm/etc/vintf proprietary/vendor/etc/vintf odm/etc/vintf vendor/etc/vintf 2>/dev/null || true
-        find . -type d -name "vintf" -exec rm -rf {} + 2>/dev/null || true
-        
-        # مسح أي متغيرات تنص على نسخ ملفات الـ vintf أو الـ manifest في ملفات التكوين
-        find . -name "*.mk" -type f -exec sed -i '/vintf/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/manifest/d' {} +
-        find . -name "*.mk" -type f -exec sed -i '/ODM_MANIFEST_FILES/d' {} +
+        # 2. إزالة شاملة وجذرية لتعاريف seccomp و mediacodec من شجرة الجهاز والفيندور معاً
+        cd ~/fox_14.1
+        for d in device/samsung/a04 vendor/samsung/a04; do
+            if [ -d "$d" ]; then
+                cd "$d"
+                rm -f Android.bp 2>/dev/null || true
+                find . -name "*mediacodec*" -delete
+                find . -name "*seccomp*" -delete
+                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/mediacodec/d' {} +
+                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/seccomp/d' {} +
+                cd ~/fox_14.1
+            fi
+        done
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
