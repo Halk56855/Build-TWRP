@@ -1,4 +1,4 @@
-name: Build OrangeFox 14.1 for Galaxy A04 (Ultimate Vintf Obliteration)
+name: Build OrangeFox 14.1 for Galaxy A04 (Definitive Libdatasource Fix)
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
         git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git -b lineage-22.2 kernel/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_kernel_samsung_a04.git kernel/samsung/a04
         git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git -b lineage-22.2 vendor/samsung/a04 || git clone https://github.com/A04-Trees-and-ROMs/android_vendor_samsung_a04.git vendor/samsung/a04
 
-    - name: Absolute Obliteration of Vintf and Manifest Files
+    - name: Eradicate Libdatasource and Conflicting Prebuilts
       run: |
         cd ~/fox_14.1
         
@@ -71,35 +71,23 @@ jobs:
         echo "COMMON_LUNCH_CHOICES += \\" >> AndroidProducts.mk
         echo "    lineage_a04-ap2a-eng" >> AndroidProducts.mk
 
-        # 2. إزالة جزرية ونهائية لأي ملف XML أو VINTF من شجرة الفيندور والجهاز لمنع الخطأ تماماً
+        # 2. إزالة جزرية لملفات الوسائط والمكتبات المتعارضة (مثل libdatasource) من الفيندور
         cd ~/fox_14.1/vendor/samsung/a04
         rm -f Android.bp 2>/dev/null || true
         
-        # حذف مجلدات الـ odm والـ vintf بالكامل
-        rm -rf proprietary/odm proprietary/vendor/etc/vintf odm vendor/etc/vintf etc/vintf 2>/dev/null || true
-        find . -type d -name "vintf" -exec rm -rf {} + 2>/dev/null || true
+        # حذف أي ملفات سو, .so أو إشارات لـ libdatasource
+        find . -name "*libdatasource*" -delete 2>/dev/null || true
         
-        # حذف أي ملف manifest أينما وجد
-        find . -name "*manifest*" -delete 2>/dev/null || true
-        find . -name "*.xml" -delete 2>/dev/null || true
+        # إزالة أسطر النسخ والتعريفات المتعلقة بـ libdatasource من جميع ملفات الـ Make
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/libdatasource/d' {} + 2>/dev/null || true
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/PRODUCT_COPY_FILES.*datasource/d' {} + 2>/dev/null || true
 
-        # تنظيف ملفات الـ Make من أي إشارة للـ vintf أو الـ manifest
+        # تطهير إضافي لضمان عدم وجود أي تعارضات سابقة (Vintf, seccomp, mediacodec)
+        find . -type d -name "vintf" -exec rm -rf {} + 2>/dev/null || true
+        find . -name "*manifest*.xml" -delete 2>/dev/null || true
         find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/vintf/d' {} + 2>/dev/null || true
-        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/manifest/d' {} + 2>/dev/null || true
-        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/ODM_MANIFEST_FILES/d' {} + 2>/dev/null || true
-
-        # تطهير إضافي من سياسات mediacodec و seccomp لتجنب أي أخطاء تالية
-        cd ~/fox_14.1
-        for d in device/samsung/a04 vendor/samsung/a04; do
-            if [ -d "$d" ]; then
-                cd "$d"
-                rm -rf $(find . -type d -name "*seccomp*") 2>/dev/null || true
-                rm -rf $(find . -type d -name "*mediacodec*") 2>/dev/null || true
-                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" -o -name "BoardConfig*.mk" \) -exec sed -i '/mediacodec/d' {} + 2>/dev/null || true
-                find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" -o -name "BoardConfig*.mk" \) -exec sed -i '/seccomp/d' {} + 2>/dev/null || true
-                cd ~/fox_14.1
-            fi
-        done
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/mediacodec/d' {} + 2>/dev/null || true
+        find . -type f \( -name "*.mk" -o -name "*.bp" -o -name "*.make" \) -exec sed -i '/seccomp/d' {} + 2>/dev/null || true
 
     - name: Build OrangeFox Recovery (Ultra Safe Mode -j2)
       run: |
