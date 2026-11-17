@@ -16,21 +16,21 @@ jobs:
             manifest_branch: 'aera-16.0'
             device_tree_url: 'https://github.com/Halk56855/a04-TWRP-11-dt.git'
             device_tree_branch: 'twrp-11'
-            makefile_name: 'twrp_a04'
+            makefile_name: 'aera_a04' # تم تحديث اسم المنتج ليطابق AERA
             build_tree: 'omni'
 
           - twrp_version: 'aera-16.0-v2'
             manifest_branch: 'aera-16.0'
             device_tree_url: 'https://github.com/Halk56855/android_device_samsung_a04-TWRP.git'
             device_tree_branch: 'twrp-12.1'
-            makefile_name: 'twrp_a04'
+            makefile_name: 'aera_a04' # تم تحديث اسم المنتج ليطابق AERA
             build_tree: 'twrp'
 
           - twrp_version: 'aera-16.0-alt'
             manifest_branch: 'aera-16.0'
             device_tree_url: 'https://github.com/Halk56855/android_recovery_samsung_a04.git'
             device_tree_branch: 'twrp-12.1'
-            makefile_name: 'twrp_a04'
+            makefile_name: 'aera_a04' # تم تحديث اسم المنتج ليطابق AERA
             build_tree: 'twrp'
 
     env:
@@ -108,7 +108,8 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        lunch ${{ matrix.makefile_name }}-eng && make clean && make ${{ env.BUILD_TARGET }}image -j$(nproc --all)
+        # استخدام التنسيق القياسي للـ lunch المتوافق مع AERA (مثل userdebug أو eng حسب تعريفات شجرة جهازك)
+        lunch omni_${{ matrix.makefile_name }}-eng && make clean && make ${{ env.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release
