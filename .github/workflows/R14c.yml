@@ -16,7 +16,7 @@ jobs:
             manifest_branch: 'aera-16.0'
             device_tree_url: 'https://github.com/SavedByLight/android_device_xiaomi_lake.git'
             device_tree_branch: 'android-16'
-            makefile_name: 'aera_lake'
+            makefile_name: 'twrp_lake'
             build_tree: 'twrp'
 
     env:
@@ -94,7 +94,7 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
-        lunch omni_${{ matrix.makefile_name }}-eng && make clean && make ${{ env.BUILD_TARGET }}image -j$(nproc --all)
+        lunch ${{ matrix.makefile_name }}-eng && make clean && make ${{ env.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Upload to Release
