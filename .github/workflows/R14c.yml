@@ -72,6 +72,13 @@ jobs:
         rm -f ./${{ env.DEVICE_PATH }}/Android.mk
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
+    - name: Patch Device Tree for AERA 16.0
+      run: |
+        # إصلاح خطأ CrashRecovery / APEX_SYSTEM_SERVER_JARS في سورس Android 16
+        echo "" >> ./${{ env.DEVICE_PATH }}/twrp_lake.mk
+        echo "PRODUCT_APEX_SYSTEM_SERVER_JARS += service-crashrecovery" >> ./${{ env.DEVICE_PATH }}/twrp_lake.mk
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
     - name: Clone common tree
       if: env.COMMON_TREE_URL != '' && env.COMMON_PATH != ''
       run: |
